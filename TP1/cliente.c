@@ -1,24 +1,21 @@
+#include "common.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
+
 #include <unistd.h>
 #include <netinet/in.h>
-
-#include "common.c"
 
 #define BUFSZ 1024
 
 void usage(int argc, char **argv){
-	printf("usage: %s <server IP> <server port>");
-	printf("example: %s 127.0.0.1 51511");
-	exit(EXIT_FAILURE);
-}
-
-void logexit(const char *msg) {
-	perror(msg);
+	printf("usage: %s <server IP> <server port>", argv[0]);
+	printf("example: %s 127.0.0.1 5151", argv[0]);
 	exit(EXIT_FAILURE);
 }
 
@@ -28,17 +25,17 @@ int main(int argc, char **argv)
 		usage(argc, argv);
 	}
 
-	int socketIo;
-	socketIo = socket(AF_INET, SOCK_STREAM, 0);
-	
-	if(socketIo == -1) {
-		logexit("socket");
-	}
-
 	/*Manipulação de endereços IPV4 e IPV6*/
 	struct sockaddr_storage storage;
 	if(0 != addrparse(argv[1], argv[2], &storage)){
 		usage(argc, argv);
+	}
+
+	int socketIo;
+	socketIo = socket(storage.ss_family, SOCK_STREAM, 0);
+	
+	if(socketIo == -1) {
+		logexit("socket");
 	}
 
 	struct sockaddr *addr = (struct sockaddr *)(&storage);
@@ -48,19 +45,19 @@ int main(int argc, char **argv)
 	}
 
 	char addrstr[BUFSZ];
-	addrtosrt(addr, addrstr, BUFSZ);
+	addrtostr(addr, addrstr, BUFSZ);
 
-	printf("connect to %s\n");
+	printf("connect to %s\n", addrstr);
 
 	char buf[BUFSZ];
 	memset(buf, 0, BUFSZ);
 
 	/* Lendo a mensagem */
 
-	printf("mensagem >\n");
+	printf("mensagem > ");
 	fgets(buf, BUFSZ - 1, stdin);
 
-	int count = send(socketIo, buf, strlen(buf) + 1, 0);
+	size_t count = send(socketIo, buf, strlen(buf) + 1, 0);
 	if( count != strlen(buf) + 1){
 		logexit("send");
 	}
@@ -80,7 +77,7 @@ int main(int argc, char **argv)
 	close(socketIo);
 
 	printf("received %u bytes\n", total);
-	printf(buf);
+	printf("%s", buf);
 
 	exit(EXIT_SUCCESS);
 }

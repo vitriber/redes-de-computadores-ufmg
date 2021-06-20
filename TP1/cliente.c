@@ -19,65 +19,63 @@ void usage(int argc, char **argv){
 	exit(EXIT_FAILURE);
 }
 
+//Recebe o endereço IP e a porta do servidor
 int main(int argc, char **argv)
 {
+	// Numero insuficiente de argumentos
 	if(argc < 3) {
 		usage(argc, argv);
 	}
 
-	/*Manipulação de endereços IPV4 e IPV6*/
+	// Cria storage
 	struct sockaddr_storage storage;
 	if(0 != addrparse(argv[1], argv[2], &storage)){
 		usage(argc, argv);
 	}
 
+	// Cria o socket
 	int socketIo;
 	socketIo = socket(storage.ss_family, SOCK_STREAM, 0);
-	
 	if(socketIo == -1) {
 		logexit("socket");
 	}
 
+	// Conecta no servidor
 	struct sockaddr *addr = (struct sockaddr *)(&storage);
-
 	if(0 != connect(socketIo, addr, sizeof(storage))){
 		logexit("connect");
 	}
 
+	// Log de qual servidor esta conectado
 	char addrstr[BUFSZ];
 	addrtostr(addr, addrstr, BUFSZ);
+	printf("Conectado ao %s\n", addrstr);
 
-	printf("connect to %s\n", addrstr);
-
-	char buf[BUFSZ];
-	memset(buf, 0, BUFSZ);
-
-	/* Lendo a mensagem */
-
-	printf("mensagem > ");
-	fgets(buf, BUFSZ - 1, stdin);
-
-	size_t count = send(socketIo, buf, strlen(buf) + 1, 0);
-	if( count != strlen(buf) + 1){
-		logexit("send");
-	}
-
-	memset(buf, 0, BUFSZ);
 	unsigned total = 0;
 
 	while (1)
 	{
-		count = recv(socketIo, buf + total, BUFSZ - total, 0);
-		if(count == 0){
-			// Conexão finalizada.
-			break;
+		char buf[BUFSZ];
+		memset(buf, 0, BUFSZ);
+		// Lendo a mensagem
+		printf("mensagem > ");
+		fgets(buf, BUFSZ - 1, stdin);
+
+		buf[strlen(buf) - 1] = 0;
+
+		// Envia a mensagem
+		size_t count = send(socketIo, buf, strlen(buf) + 1, 0);
+		if( count != strlen(buf) + 1){
+			logexit("envio_mensagem");
 		}
+
+		count = recv(socketIo, buf + total, BUFSZ - total, 0);
+		if(count == 0) logexit("recebimento_resposta");
+
 		total += count;
+		printf("Enviado %u bytes\n", total);
+		printf("Mensagem do servidor %s\n", buf);
 	}
 	close(socketIo);
-
-	printf("received %u bytes\n", total);
-	printf("%s", buf);
-
 	exit(EXIT_SUCCESS);
 }

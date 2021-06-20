@@ -25,3 +25,5 @@ int server_sockaddr_init(
     struct sockaddr_storage *storage
 );
 
+int send_message(int client_socket, char *mensagem);
+

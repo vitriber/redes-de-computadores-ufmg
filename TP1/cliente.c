@@ -56,9 +56,8 @@ int main(int argc, char **argv)
 	while (1)
 	{
 		char buf[BUFSZ];
-		memset(buf, 0, BUFSZ);
 		// Lendo a mensagem
-		printf("mensagem > ");
+		printf("> ");
 		fgets(buf, BUFSZ - 1, stdin);
 
 		buf[strlen(buf) - 1] = 0;
@@ -69,12 +68,13 @@ int main(int argc, char **argv)
 			logexit("envio_mensagem");
 		}
 
-		count = recv(socketIo, buf + total, BUFSZ - total, 0);
+		memset(buf, 0, BUFSZ);
+		count = recv(socketIo, buf, BUFSZ, 0);
 		if(count == 0) logexit("recebimento_resposta");
 
 		total += count;
-		printf("Enviado %u bytes\n", total);
-		printf("Mensagem do servidor %s\n", buf);
+		//printf("Enviado %u bytes\n", total);
+		printf("< %s\n", buf);
 	}
 	close(socketIo);
 	exit(EXIT_SUCCESS);

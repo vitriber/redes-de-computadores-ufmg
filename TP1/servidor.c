@@ -37,38 +37,44 @@ int verify_exists(int coordenate_x, int coordenate_y){
 }
 
 
-void add_local_vaccination(int coordenate_x, int coordenate_y){
+void add_local_vaccination(int coordenate_x, int coordenate_y, int client_socket){
 	int isExists = verify_exists(coordenate_x, coordenate_y);
+	char buf[BUFSZ];
 	int i = 0;
 
-	if(isExists != -1){
+	if(isExists == -1){
 		for(i = 0; i < 50; i++) {
-			if(vaccination_coordenates[i].x != 0 && vaccination_coordenates[i].y != 0){
+			if(vaccination_coordenates[i].x == 0 && vaccination_coordenates[i].y == 0){
 				if(i >= 50){
 					printf("limit exceeded");
 					return;
 				}
 				vaccination_coordenates[i].x = coordenate_x;
 				vaccination_coordenates[i].y = coordenate_y;
+				break;
 			}
 		}
-		printf("%d %d added", coordenate_x, coordenate_y);
+		sprintf(buf, "%d %d added", coordenate_x, coordenate_y);
 	}else{
-		printf("%d %d already exists", coordenate_x, coordenate_y);
+		sprintf(buf, "%d %d already exists", coordenate_x, coordenate_y);
 	}
 
+	send_message(client_socket, buf);
 }
 
-void remove_local_vaccination(int coordenate_x, int coordenate_y){
+void remove_local_vaccination(int coordenate_x, int coordenate_y, int client_socket){
 	int isExists = verify_exists(coordenate_x, coordenate_y);
+	char buf[BUFSZ];
 
 	if(isExists != -1){
 		vaccination_coordenates[isExists].x = 0;
 		vaccination_coordenates[isExists].y = 0;
-		printf("%d %d removed", coordenate_x, coordenate_y);
+		sprintf(buf, "%d %d removed", coordenate_x, coordenate_y);
 	}else{
-		printf("%d %d does not exist", coordenate_x, coordenate_y);
+		sprintf(buf, "%d %d does not exist", coordenate_x, coordenate_y);
 	}
+
+	send_message(client_socket, buf);
 }
 
 void query_local_vaccination(int coordenate_x, int coordenate_y){
@@ -117,22 +123,31 @@ void query_local_vaccination(int coordenate_x, int coordenate_y){
 	}
 }
 
-void list_local_vaccination(){
-	printf("\nEstou entrando aqui!!\n");
-
+void list_local_vaccination(int socket_client){
 	int i = 0;
 	int exist_local = 0;
+
+	char buf[BUFSZ];
+
+	char list_coordenates[BUFSZ] = "";
 	for(i = 0; i < 50; i++) {
-		// if(vaccination_coordenates[i].x == 0 || vaccination_coordenates[i].y == 0){
-		// 	return;
-		// }
-		// exist_local = 1;
-		printf("%d %d \n", vaccination_coordenates[i].x, vaccination_coordenates[i].y);
+		if(vaccination_coordenates[i].x == 0 || vaccination_coordenates[i].y == 0){
+			continue;
+		}
+		exist_local = 1;
+		char coordenate[15] = "";
+		sprintf(coordenate, " %d %d ", vaccination_coordenates[i].x, vaccination_coordenates[i].y);
+
+		strcat(list_coordenates, coordenate);
 	}
 
+	sprintf(buf, "%s", list_coordenates);
+
 	if(exist_local == 0){
-		printf("none");
+		sprintf(buf, "none");
 	}
+
+	send_message(socket_client, buf);
 }
 
 // Recebe a porta para aguardar conexoes do cliente
@@ -183,7 +198,7 @@ int main(int argc, char *argv[])
 	char addrstr[BUFSZ];
 	addrtostr(addr, addrstr, BUFSZ);
 
-	printf("Iniciado no %s, esperando a conexão...\n", addrstr);
+	printf("[log] Iniciado no %s, esperando a conexão...\n", addrstr);
 
 	// Loop do funcionamento do servidor
 	while(1){
@@ -209,7 +224,7 @@ int main(int argc, char *argv[])
 			memset(buf, 0, 	BUFSZ);
 			size_t count = recv(csock, buf, BUFSZ, 0);
 
-			printf("[msg] %s, %d bytes: %s\n", caddrstr, (int)count, buf);
+			printf("\n[msg] %s, %d bytes: %s\n", caddrstr, (int)count, buf);
 
 			if(strcmp(buf, "kill") == 0){
 				close(csock);
@@ -222,7 +237,7 @@ int main(int argc, char *argv[])
 			int coordenate_x = 0;
 			int coordenate_y = 0;  
 
-			char *token = strtok(buf," "); 
+			char *token = strtok(buf," ");
 
 			while(token != NULL) {        
 				if(cont == 0) {        
@@ -236,31 +251,22 @@ int main(int argc, char *argv[])
 				token = strtok(NULL, " ");    
 			}
 
-			printf("\nComando: %s\nCoordenada X: %d\nCoordenada Y: %d\n", function, coordenate_x, coordenate_y);
+			printf("\n[log]\nComando: %s\nCoordenada X: %d\nCoordenada Y: %d\n", function, coordenate_x, coordenate_y);
 
 			if(strcmp(function, "list") == 0){
-				printf("\nEstou entrando aqui!!\n");
-				list_local_vaccination();
+				list_local_vaccination(csock);
 			}
 
 			if(strcmp(function, "add") == 0){
-				add_local_vaccination(coordenate_x, coordenate_y);
+				add_local_vaccination(coordenate_x, coordenate_y, csock);
 			}
 			if(strcmp(function, "remove") == 0){
-				remove_local_vaccination(coordenate_x, coordenate_y);
+				remove_local_vaccination(coordenate_x, coordenate_y, csock);
 			}
 			if(strcmp(function, "query") == 0){
 				query_local_vaccination(coordenate_x, coordenate_y);
 			}
-
-			sprintf(buf, "remote endpoint: %.1000s\n", caddrstr);
-			count = send(csock, buf, strlen(buf) + 1, 0);
-			if( count != strlen(buf) + 1){
-				logexit("send");
-			}
 		}
-
-		
 	}
 
 	exit(EXIT_SUCCESS);

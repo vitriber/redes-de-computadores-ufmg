@@ -104,3 +104,12 @@ int server_sockaddr_init(
     } 
     return -1;
 }
+
+int send_message(int client_socket, char *mensagem) {
+    int count;
+    count = send(client_socket, mensagem, strlen(mensagem) + 1, 0);
+    if( count != strlen(mensagem) + 1){
+        logexit("send");
+    }
+    return count;
+}

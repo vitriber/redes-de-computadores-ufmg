@@ -5,6 +5,8 @@
 
 #include <arpa/inet.h>
 
+#define BUFSZ 500
+
 void logexit(const char *msg) {
 	perror(msg);
 	exit(EXIT_FAILURE);
@@ -105,11 +107,14 @@ int server_sockaddr_init(
     return -1;
 }
 
-int send_message(int client_socket, char *mensagem) {
-    int count;
-    count = send(client_socket, mensagem, strlen(mensagem) + 1, 0);
-    if( count != strlen(mensagem) + 1){
-        logexit("send");
-    }
-    return count;
+int send_message(int client_socket, char *mensagem, ssize_t numBytesRcvd) {
+    ssize_t numBytesSent;
+    
+    numBytesSent = send(client_socket, mensagem, strlen(mensagem), 0);
+    if (numBytesSent < 0) logexit("send() failed");
+
+	printf("\n[msg] Mensagem enviada: %s", mensagem);
+    printf("\n-------------------------------------------------");
+
+    return numBytesSent;
 }

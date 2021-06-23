@@ -11,7 +11,7 @@
 #include <arpa/inet.h>
 #include <math.h>
 
-#define BUFSZ 1024
+#define BUFSZ 500
 
 Local vaccination_coordenates[50];
 
@@ -36,54 +36,61 @@ int verify_exists(int coordenate_x, int coordenate_y){
 	return -1;
 }
 
-
-void add_local_vaccination(int coordenate_x, int coordenate_y, int client_socket){
-	int isExists = verify_exists(coordenate_x, coordenate_y);
-	char buf[BUFSZ];
-	int i = 0;
-
-	if(isExists == -1){
-		for(i = 0; i < 50; i++) {
-			if(vaccination_coordenates[i].x == 0 && vaccination_coordenates[i].y == 0){
-				if(i >= 50){
-					printf("limit exceeded");
-					return;
-				}
-				vaccination_coordenates[i].x = coordenate_x;
-				vaccination_coordenates[i].y = coordenate_y;
-				break;
-			}
+int get_position(){
+	int i;
+	for(i = 0; i < 50; i++) {
+		if(vaccination_coordenates[i].x == -1 && vaccination_coordenates[i].y == -1){
+			return i;
 		}
-		sprintf(buf, "%d %d added", coordenate_x, coordenate_y);
-	}else{
-		sprintf(buf, "%d %d already exists", coordenate_x, coordenate_y);
 	}
-
-	send_message(client_socket, buf);
+	return - 1;
 }
 
-void remove_local_vaccination(int coordenate_x, int coordenate_y, int client_socket){
+
+void add_local_vaccination(int coordenate_x, int coordenate_y, int client_socket, ssize_t numBytesRcvd){
+	char buf[BUFSZ];
+
+	int isExists = verify_exists(coordenate_x, coordenate_y);	
+	int index = get_position();
+
+	if(isExists == -1){
+		if(index != -1){
+			vaccination_coordenates[index].x = coordenate_x;
+			vaccination_coordenates[index].y = coordenate_y;
+			sprintf(buf, "%d %d added\n", coordenate_x, coordenate_y);
+		}else {
+			sprintf(buf, "limit exceeded\n");
+		}		
+	}else{
+		sprintf(buf, "%d %d already exists\n", coordenate_x, coordenate_y);
+	}
+
+	send_message(client_socket, buf, numBytesRcvd);
+}
+
+void remove_local_vaccination(int coordenate_x, int coordenate_y, int client_socket, ssize_t numBytesRcvd){
 	int isExists = verify_exists(coordenate_x, coordenate_y);
 	char buf[BUFSZ];
 
 	if(isExists != -1){
-		vaccination_coordenates[isExists].x = 0;
-		vaccination_coordenates[isExists].y = 0;
-		sprintf(buf, "%d %d removed", coordenate_x, coordenate_y);
+		vaccination_coordenates[isExists].x = -1;
+		vaccination_coordenates[isExists].y = -1;
+		sprintf(buf, "%d %d removed\n", coordenate_x, coordenate_y);
 	}else{
-		sprintf(buf, "%d %d does not exist", coordenate_x, coordenate_y);
+		sprintf(buf, "%d %d does not exist\n", coordenate_x, coordenate_y);
 	}
 
-	send_message(client_socket, buf);
+	send_message(client_socket, buf, numBytesRcvd);
 }
 
-void query_local_vaccination(int coordenate_x, int coordenate_y){
+void query_local_vaccination(int coordenate_x, int coordenate_y, int client_socket, ssize_t numBytesRcvd){
 	// Calcular a distancia de todos os pontos em relação ao ponto passado e salvar em um vetor
 	// Escolher a menor distancia
 	// Retornar a coordenada que possui a menor distancia
 	int i = 0;
 	int y = 0;
 	int exist_local = 0;
+	char buf[BUFSZ];
 
 	double distances[50];
 
@@ -92,7 +99,7 @@ void query_local_vaccination(int coordenate_x, int coordenate_y){
 	point_repassed.y = coordenate_y;
 
 	for(i = 0; i < 50; i++) {
-		if(vaccination_coordenates[i].x == 0 && vaccination_coordenates[i].y == 0){
+		if(vaccination_coordenates[i].x == -1 && vaccination_coordenates[i].y == -1){
 			distances[i] = -1;
 		}
 		exist_local = 1;
@@ -117,13 +124,18 @@ void query_local_vaccination(int coordenate_x, int coordenate_y){
 	}
 
 	if(exist_local == 0){
-		printf("none");
+		sprintf(buf, "none\n");
 	}else{
-		printf("%d %d", vaccination_coordenates[position].x, vaccination_coordenates[position].y);
+		sprintf(buf, "%d %d\n", vaccination_coordenates[position].x, vaccination_coordenates[position].y);
 	}
+
+	short_distance = 0;
+	position = 0;
+
+	send_message(client_socket, buf, numBytesRcvd);
 }
 
-void list_local_vaccination(int socket_client){
+void list_local_vaccination(int socket_client, ssize_t numBytesRcvd){
 	int i = 0;
 	int exist_local = 0;
 
@@ -131,12 +143,12 @@ void list_local_vaccination(int socket_client){
 
 	char list_coordenates[BUFSZ] = "";
 	for(i = 0; i < 50; i++) {
-		if(vaccination_coordenates[i].x == 0 || vaccination_coordenates[i].y == 0){
+		if(vaccination_coordenates[i].x == -1 || vaccination_coordenates[i].y == -1){
 			continue;
 		}
 		exist_local = 1;
 		char coordenate[15] = "";
-		sprintf(coordenate, " %d %d ", vaccination_coordenates[i].x, vaccination_coordenates[i].y);
+		sprintf(coordenate, "%d %d \n", vaccination_coordenates[i].x, vaccination_coordenates[i].y);
 
 		strcat(list_coordenates, coordenate);
 	}
@@ -144,11 +156,21 @@ void list_local_vaccination(int socket_client){
 	sprintf(buf, "%s", list_coordenates);
 
 	if(exist_local == 0){
-		sprintf(buf, "none");
+		sprintf(buf, "none\n");
 	}
 
-	send_message(socket_client, buf);
+	send_message(socket_client, buf, numBytesRcvd);
 }
+
+void clear_array(){
+	//zera as coordenadas de vacinação
+	int i;
+	for(i = 0; i < 50; i++) {
+		vaccination_coordenates[i].x = -1;
+		vaccination_coordenates[i].y = -1;
+	}
+}
+
 
 // Recebe a porta para aguardar conexoes do cliente
 int main(int argc, char *argv[])
@@ -158,12 +180,7 @@ int main(int argc, char *argv[])
 		usage(argc, argv);
 	}
 
-	//zera as coordenadas de vacinação
-	int i;
-	for(i = 0; i < 50; i++) {
-		vaccination_coordenates[i].x = 0;
-		vaccination_coordenates[i].y = 0;
-	}
+	clear_array();
 
 	//inicia o storage
 	struct sockaddr_storage storage;
@@ -195,10 +212,11 @@ int main(int argc, char *argv[])
 		logexit("listen");
 	}
 
+	// Log de inicio do servidor
 	char addrstr[BUFSZ];
 	addrtostr(addr, addrstr, BUFSZ);
-
 	printf("[log] Iniciado no %s, esperando a conexão...\n", addrstr);
+	int j = 0;
 
 	// Loop do funcionamento do servidor
 	while(1){
@@ -213,29 +231,32 @@ int main(int argc, char *argv[])
 			logexit("accept");
 		}
 
-		// Log de conexão
+		if(j == 4){
+			j = 0;
+		}
+		
+		// Log de conexão com o cliente
 		char caddrstr[BUFSZ];
 		addrtostr(caddr, caddrstr, BUFSZ);
-		printf("[log] Conectado com %s\n", caddrstr);
+		printf("\n[log] Conectado com %s, TESTE: %d", caddrstr, j);
 
-		while(1){
-			// Recebe a entrada
+		j++;
+
+
+		while (1) { 
 			char buf[BUFSZ];
 			memset(buf, 0, 	BUFSZ);
-			size_t count = recv(csock, buf, BUFSZ, 0);
 
-			printf("\n[msg] %s, %d bytes: %s\n", caddrstr, (int)count, buf);
+			ssize_t numBytesRcvd = recv(csock, buf, BUFSZ, 0);
+			if (numBytesRcvd < 0) logexit("recv() failed");
+			printf("\n-------------------------------------------------");
+			printf("\n[msg] Mensagem recebida: %s", buf);
 
-			if(strcmp(buf, "kill") == 0){
-				close(csock);
-				break;
-			}
-			
 			int cont = 0;
 			char function[4];
 			memset(function, 0, 4);
 			int coordenate_x = 0;
-			int coordenate_y = 0;  
+			int coordenate_y = 0;
 
 			char *token = strtok(buf," ");
 
@@ -251,24 +272,33 @@ int main(int argc, char *argv[])
 				token = strtok(NULL, " ");    
 			}
 
-			printf("\n[log]\nComando: %s\nCoordenada X: %d\nCoordenada Y: %d\n", function, coordenate_x, coordenate_y);
+			// printf("\nFunção: %s Coordenada_X: %d Coordenada_Y: %d\n", function, coordenate_x, coordenate_y);
 
-			if(strcmp(function, "list") == 0){
-				list_local_vaccination(csock);
+			int kill = strcmp(function, "kill");
+			int list = strcmp(function, "list");
+			int add = strcmp(function, "add");
+			int remove = strcmp(function, "rm");
+			int query = strcmp(function, "query");
+
+			
+			if((kill == 0) || (numBytesRcvd > 500) || (kill != 0 && list != 0 && add != 0 && remove != 0 && query != 0)) {
+				printf("\nCliente desconectado!!!");
+    			printf("\n-------------------------------------------------");
+				clear_array();
+				close(csock);
+				break;
 			}
 
-			if(strcmp(function, "add") == 0){
-				add_local_vaccination(coordenate_x, coordenate_y, csock);
-			}
-			if(strcmp(function, "remove") == 0){
-				remove_local_vaccination(coordenate_x, coordenate_y, csock);
-			}
-			if(strcmp(function, "query") == 0){
-				query_local_vaccination(coordenate_x, coordenate_y);
-			}
+
+			if( list == 0) list_local_vaccination(csock, numBytesRcvd);
+			if( add == 0) add_local_vaccination(coordenate_x, coordenate_y, csock, numBytesRcvd);
+			if( remove == 0) remove_local_vaccination(coordenate_x, coordenate_y, csock, numBytesRcvd);
+			if( query == 0) query_local_vaccination(coordenate_x, coordenate_y, csock, numBytesRcvd);
+
+			// Vendo se há mais dados para receber
+			// numBytesRcvd = recv(csock, buf, BUFSZ, 0);
+			// if (numBytesRcvd < 0) logexit("recv() failed");
 		}
 	}
-
 	exit(EXIT_SUCCESS);
-
 }

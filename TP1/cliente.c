@@ -11,7 +11,7 @@
 #include <unistd.h>
 #include <netinet/in.h>
 
-#define BUFSZ 1024
+#define BUFSZ 500
 
 void usage(int argc, char **argv){
 	printf("usage: %s <server IP> <server port>", argv[0]);
@@ -72,8 +72,11 @@ int main(int argc, char **argv)
 		count = recv(socketIo, buf, BUFSZ, 0);
 		if(count == 0) logexit("recebimento_resposta");
 
+		if(buf[0] == 1) {
+			break;
+		}
+
 		total += count;
-		//printf("Enviado %u bytes\n", total);
 		printf("< %s\n", buf);
 	}
 	close(socketIo);

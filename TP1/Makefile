@@ -4,4 +4,4 @@ all:
 	gcc -g -Wall servidor.c common.o -o servidor -lm
 
 clean:
-	rm common.o cliente.o servidor.o
+	rm common.o cliente servidor

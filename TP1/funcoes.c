@@ -107,14 +107,15 @@ int server_sockaddr_init(
     return -1;
 }
 
-int send_message(int client_socket, char *mensagem, ssize_t numBytesRcvd) {
+int send_message(int client_socket, char *mensagem) {
     ssize_t numBytesSent;
     
     numBytesSent = send(client_socket, mensagem, strlen(mensagem), 0);
-    if (numBytesSent < 0) logexit("send() failed");
+    if (numBytesSent != strlen(mensagem)){
+        logexit("send() failed");
+    }
 
-	printf("\n[msg] Mensagem enviada: %s", mensagem);
-    printf("\n-------------------------------------------------");
+    printf("\n Mensagem enviada para o cliente: %s\n", mensagem);
 
     return numBytesSent;
 }

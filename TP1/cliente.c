@@ -1,4 +1,4 @@
-#include "common.h"
+#include "funcoes.h"
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -51,16 +51,13 @@ int main(int argc, char **argv)
 	addrtostr(addr, addrstr, BUFSZ);
 	printf("Conectado ao %s\n", addrstr);
 
-	unsigned total = 0;
-
 	while (1)
 	{
 		char buf[BUFSZ];
+		memset(buf, 0, BUFSZ);
 		// Lendo a mensagem
 		printf("> ");
 		fgets(buf, BUFSZ - 1, stdin);
-
-		buf[strlen(buf) - 1] = 0;
 
 		// Envia a mensagem
 		size_t count = send(socketIo, buf, strlen(buf) + 1, 0);
@@ -68,15 +65,14 @@ int main(int argc, char **argv)
 			logexit("envio_mensagem");
 		}
 
-		memset(buf, 0, BUFSZ);
 		count = recv(socketIo, buf, BUFSZ, 0);
-		if(count == 0) logexit("recebimento_resposta");
+		if(count == 0 || count > 500){
+			break;
+		}
 
 		if(buf[0] == 1) {
 			break;
 		}
-
-		total += count;
 		printf("< %s\n", buf);
 	}
 	close(socketIo);

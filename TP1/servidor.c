@@ -12,21 +12,18 @@
 #include <math.h>
 
 #define BUFSZ 500
-#define MIN_VALUE_VALID_COORDINATE 0
-#define MAX_VALUE_VALID_COORDINATE 9999
-#define MAX_LOCATION_QUANTITY 50
-#define MAX_BYTES 500
-#define OPTION_ADD "add"
-#define OPTION_REMOVE "rm"
-#define OPTION_LIST "list"
-#define OPTION_QUERY "query"
-#define ERROR_RETURN "Method not found"
+#define MIN_VALUE_COORDINATE 0
+#define MAX_VALUE_COORDINATE 9999
+#define MAX_LOCATION 50
+#define O_ADD "add"
+#define O_REMOVE "rm"
+#define O_LIST "list"
+#define O_QUERY "query"
 
+Local vaccination_coordenates[MAX_LOCATION];
+double distances_e[MAX_LOCATION];
 char function[5];
 int coordenate_x, coordenate_y;
-
-Local vaccination_coordenates[50];
-double euclidean_distances[50];
 
 // Mensagem caso passe parametros inválidos
 void usage(int argc, char **argv) {
@@ -38,7 +35,7 @@ void usage(int argc, char **argv) {
 // Verifica se existe a coordenada
 int verify_exists(){
 	int i = 0;
-	for(i = 0; i < 50; i++) {
+	for(i = 0; i < MAX_LOCATION; i++) {
 		if(vaccination_coordenates[i].x == coordenate_x && vaccination_coordenates[i].y == coordenate_y){
 			return i;
 		}
@@ -49,7 +46,7 @@ int verify_exists(){
 // Encontra uma posição valida
 int get_position(){
 	int i;
-	for(i = 0; i < 50; i++) {
+	for(i = 0; i < MAX_LOCATION; i++) {
 		if(vaccination_coordenates[i].x == -1 && vaccination_coordenates[i].y == -1){
 			return i;
 		}
@@ -61,7 +58,7 @@ int get_position(){
 int get_size_locations() {
     int i;    
     int cont = 0;
-    for(i = 0; i < MAX_LOCATION_QUANTITY; i++) {
+    for(i = 0; i < MAX_LOCATION; i++) {
         if(vaccination_coordenates[i].x != -1 && vaccination_coordenates[i].y != -1){
             cont += 1;
         }
@@ -101,13 +98,13 @@ void remove_local_vaccination(int client_socket){
 		vaccination_coordenates[isExists].y = -1;
 
 		int i;    
-		for(i = isExists + 1; i < MAX_LOCATION_QUANTITY; i++) {
+		for(i = isExists + 1; i < MAX_LOCATION; i++) {
 			vaccination_coordenates[i-1].x = vaccination_coordenates[i].x;
 			vaccination_coordenates[i-1].y = vaccination_coordenates[i].y;        
 		}
 
-		vaccination_coordenates[MAX_LOCATION_QUANTITY - 1].x = -1;
-		vaccination_coordenates[MAX_LOCATION_QUANTITY - 1].y = -1;
+		vaccination_coordenates[MAX_LOCATION - 1].x = -1;
+		vaccination_coordenates[MAX_LOCATION - 1].y = -1;
 
 		sprintf(buf, "%d %d removed\n", coordenate_x, coordenate_y);
 	}else{
@@ -128,7 +125,7 @@ void query_local_vaccination(int client_socket) {
     }     
 
     int i;        
-    for(i = 0; i < MAX_LOCATION_QUANTITY; i++) {      
+    for(i = 0; i < MAX_LOCATION; i++) {      
         if(vaccination_coordenates[i].x != -1 && vaccination_coordenates[i].y != -1) {  
 
             double x_value = (double)vaccination_coordenates[i].x - coordenate_x;       
@@ -136,15 +133,15 @@ void query_local_vaccination(int client_socket) {
             
             double distance = sqrt(pow(x_value, 2) + pow(y_value, 2));
             if(distance >= 0){
-                euclidean_distances[i] = distance;
+                distances_e[i] = distance;
             }            
         }
     }
 
-    for(i = 0; i < MAX_LOCATION_QUANTITY; i++) {
-        if(euclidean_distances[i] >= 0) {
-            if(euclidean_distances[i] < min_distance){
-                min_distance = euclidean_distances[i];
+    for(i = 0; i < MAX_LOCATION; i++) {
+        if(distances_e[i] >= 0) {
+            if(distances_e[i] < min_distance){
+                min_distance = distances_e[i];
                 index = i;
             }
         }
@@ -196,12 +193,12 @@ void clear_array(){
 	for(i = 0; i < 50; i++) {
 		vaccination_coordenates[i].x = -1;
 		vaccination_coordenates[i].y = -1;
-		euclidean_distances[i] = 9999;
+		distances_e[i] = 9999;
 	}
 }
 
 // Verifica se o comando enviado é valido
-int check_valid_command(char *buf) {
+int v_valid_command(char *buf) {
     char * token = strtok(buf, " ");
     int cont = 0;    
 
@@ -217,20 +214,22 @@ int check_valid_command(char *buf) {
         token = strtok(NULL, " ");    
     }
 
-    int optionAdd = strcmp(function, OPTION_ADD) == 0;
-    int optionRm = strcmp(function, OPTION_REMOVE) == 0;
-    int optionQuery = strcmp(function, OPTION_QUERY) == 0;
-    int optionList = strcmp(function, OPTION_LIST) == 0;    
+    int add = strcmp(function, O_ADD) == 0;
+    int remove = strcmp(function, O_REMOVE) == 0;
+    int query = strcmp(function, O_QUERY) == 0;
+    int list = strcmp(function, O_LIST) == 0;    
 
-    int functionWithParameters = (optionAdd || optionRm || optionQuery) && cont == 3;
-    int functionWithoutParameters = optionList && cont == 1;    
-    if(!functionWithParameters && !functionWithoutParameters) {             
+    int functionParam = (add || remove || query) && cont == 3;
+    int functionWParam = list && cont == 1;    
+    if(!functionParam && !functionWParam) {             
         return -1;
     }
 
-    int xValid = coordenate_x >= MIN_VALUE_VALID_COORDINATE && coordenate_x <= MAX_VALUE_VALID_COORDINATE;
-    int yValid = coordenate_y >= MIN_VALUE_VALID_COORDINATE && coordenate_y <= MAX_VALUE_VALID_COORDINATE;
-    if(functionWithParameters && (!xValid || !yValid)) {        
+    int xV = coordenate_x >= MIN_VALUE_COORDINATE &&
+	 coordenate_x <= MAX_VALUE_COORDINATE;
+    int yV = coordenate_y >= MIN_VALUE_COORDINATE &&
+	 coordenate_y <= MAX_VALUE_COORDINATE;
+    if(functionParam && (!xV || !yV)) {        
         return -1;
     }    
 
@@ -238,14 +237,14 @@ int check_valid_command(char *buf) {
 }
 
 // Aciona as funções de acordo com o comando
-void function_select(char *buf, int cliet_socket) {
-    if(strcmp(function, OPTION_ADD) == 0) {
+void function_select(int cliet_socket) {
+    if(strcmp(function, O_ADD) == 0) {
         add_local_vaccination(cliet_socket);        
-    } else if(strcmp(function, OPTION_REMOVE) == 0) {
+    } else if(strcmp(function, O_REMOVE) == 0) {
         remove_local_vaccination(cliet_socket);
-    } else if(strcmp(function, OPTION_QUERY) == 0) {
+    } else if(strcmp(function, O_QUERY) == 0) {
         query_local_vaccination(cliet_socket);
-    } else if (strcmp(function, OPTION_LIST) == 0) {
+    } else if (strcmp(function, O_LIST) == 0) {
         list_local_vaccination(cliet_socket);
     } else {
         logexit("option");
@@ -253,7 +252,7 @@ void function_select(char *buf, int cliet_socket) {
 }
 
 // Formata a mensagem recebida
-void format_message(char *buf){
+void f_message(char *buf){
     int i=0;    
     while(i <= strlen(buf)) {        
         if(buf[i] == '\n') {
@@ -264,19 +263,19 @@ void format_message(char *buf){
 }
 
 // Verifica uma mensagem imcompleta
-void verify_message_imcomplete(char *buf, int count, int csock) {
-    int hasCompleteMessage = 0;
-    while (hasCompleteMessage == 0) {
+void v_message_incomplete(char *buf, int count, int csock) {
+    int hasComMessage = 0;
+    while (hasComMessage == 0) {
         int i;
         for(i = 0; i < strlen(buf); i++)
         {                    
             if(buf[i] == '\n'){                        
-                hasCompleteMessage = 1;
+                hasComMessage = 1;
                 break;
             }
         }  
 
-        if(hasCompleteMessage == 0) {            
+        if(hasComMessage == 0) {            
             char buf_aux[BUFSZ];
             memset(buf_aux, 0, BUFSZ);
             count += recv(csock, buf_aux, BUFSZ, 0);
@@ -289,7 +288,7 @@ void verify_message_imcomplete(char *buf, int count, int csock) {
 
 // Verifica se o comando é válido antes de selecionar a ação
 int command_invite(char *buf, int count, int csock) {    
-    format_message(buf);    
+    f_message(buf);    
     
     if ((int)count > 500) {         
         close(csock); 
@@ -302,12 +301,12 @@ int command_invite(char *buf, int count, int csock) {
         return -1;
     }
 
-    if(check_valid_command(buf) != 0 ) {        
+    if(v_valid_command(buf) != 0 ) {        
         close(csock);
         return -1;
     }
 
-    function_select(buf, csock);              
+    function_select(csock);              
 
     return 0;
 }
@@ -404,7 +403,7 @@ int main(int argc, char *argv[])
                     }
                 }
             } else {                
-                verify_message_imcomplete(buf, numBytesRcvd, csock);
+                v_message_incomplete(buf, numBytesRcvd, csock);
                 if(command_invite(buf, numBytesRcvd, csock) != 0) {                    
                     break;
                 }
